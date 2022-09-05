@@ -1,0 +1,61 @@
+---
+
+- name: CHECK IF DEVICES ARE PINGABLE
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  
+  vars:
+    token: 647e42669cd08b2c5c5dba80c7af13c8956af9bd
+    url: http://159.89.34.192:8000
+  
+  tasks:
+  
+    - name: GET NETBOX DATA
+      uri:
+        url: "{{ url }}/graphql/"
+        body_format: json
+        return_content: yes
+        body:
+          query: '{{ lookup("file", "site_devices.graphql")  }}'
+        headers:
+          Accept: application/json
+          Authorization: Token {{ token }}
+        method: POST
+        validate_certs: false
+      register: response
+    
+    - name: SEND PING TO DEVICE
+      shell: ping {{ item['name'] }} -c 5
+      loop: "{{ response['json']['data']['site_list'][0]['devices'] }}"
+      register: ping_pct
+      ignore_errors: true
+
+    - name: Print the name of the failed hostnames
+      debug:
+        var: item['item']['name']
+      loop: "{{ ping_pct['results'] }}"
+      when: item.get("failed")
+    
+    - name: SET INACTIVE THE DEVICES 
+      uri:
+        url: "{{ url }}/api/dcim/devices/{{item['item']['id']}}/"
+        body_format: json
+        return_content: yes
+        body:
+          status: offline
+        headers:
+          Accept: application/json
+          Authorization: Token {{ token }}
+        method: PATCH
+        validate_certs: false
+      loop: "{{ ping_pct['results'] }}"
+      when: item.get("failed")
+      register: devices_requests
+      ignore_errors: true
+    
+    - name: REQUEST RESPONSE
+      debug:
+        var: devices_requests
+    
+

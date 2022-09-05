@@ -1,0 +1,19 @@
+{
+    site_list(name:"1029"){
+      id,
+    	name,
+    	devices {
+    	  id,
+        name,
+        device_role {
+          id
+        },
+        device_type {
+          id
+        },
+        site {
+          id
+        }
+    	}
+    }
+}
